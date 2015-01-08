@@ -30,4 +30,10 @@ interface CommandExecutor
      * @return null|string
      */
     public function findBinary($binary, $buildPath = null);
+
+    /**
+     * Define a list of directory to search for binaries inside the build path.
+     * @param array $binaryPaths
+     */
+    public function setBinaryPaths(array $binaryPaths);
 }

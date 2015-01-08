@@ -52,6 +52,12 @@ abstract class BaseCommandExecutor implements CommandExecutor
     protected $buildPath;
 
     /**
+     * An array of paths to binaries.
+     * @var array
+     */
+    protected $binaryPaths = [];
+
+    /**
      * @param BuildLogger $logger
      * @param string      $rootDir
      * @param bool        $quiet
@@ -66,6 +72,14 @@ abstract class BaseCommandExecutor implements CommandExecutor
         $this->lastOutput = array();
 
         $this->rootDir = $rootDir;
+    }
+
+    /**
+     * @param array $binaryPaths
+     */
+    public function setBinaryPaths(array $binaryPaths)
+    {
+        $this->binaryPaths = $binaryPaths;
     }
 
     /**
@@ -151,8 +165,26 @@ abstract class BaseCommandExecutor implements CommandExecutor
      */
     public function findBinary($binary, $buildPath = null)
     {
-        $binaryPath = null;
-        $composerBin = $this->getComposerBinDir(realpath($buildPath));
+        $paths = [];
+
+        if ($buildPath !== null) {
+            $buildRoot = realpath($buildPath);
+
+            foreach ($this->binaryPaths as $path) {
+                $fullPath = $buildRoot . '/' . trim($path, '/') . '/';
+                if (is_dir($fullPath)) {
+                    $paths[$path] = $fullPath;
+                }
+            }
+
+            $composerBin = $this->getComposerBinDir($buildRoot);
+            if (is_dir($composerBin)) {
+                $paths[$composerBin] = $composerBin . '/';
+            }
+        }
+
+        $paths['root'] = $this->rootDir;
+        $paths['vendor/bin'] = $this->rootDir . 'vendor/bin/';
 
         if (is_string($binary)) {
             $binary = array($binary);
@@ -161,33 +193,20 @@ abstract class BaseCommandExecutor implements CommandExecutor
         foreach ($binary as $bin) {
             $this->logger->log(Lang::get('looking_for_binary', $bin), LogLevel::DEBUG);
 
-            if (is_dir($composerBin) && is_file($composerBin.'/'.$bin)) {
-
-                $this->logger->log(Lang::get('found_in_path', $composerBin, $bin), LogLevel::DEBUG);
-                $binaryPath = $composerBin . '/' . $bin;
-                break;
-            }
-
-            if (is_file($this->rootDir . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'root', $bin), LogLevel::DEBUG);
-                $binaryPath = $this->rootDir . $bin;
-                break;
-            }
-
-            if (is_file($this->rootDir . 'vendor/bin/' . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'vendor/bin', $bin), LogLevel::DEBUG);
-                $binaryPath = $this->rootDir . 'vendor/bin/' . $bin;
-                break;
+            foreach ($paths as $relative => $fullPath) {
+                if (is_file($fullPath . $bin)) {
+                    $this->logger->log(Lang::get('found_in_path', $relative, $fullPath), LogLevel::DEBUG);
+                    return $fullPath . $bin;
+                }
             }
 
             $findCmdResult = $this->findGlobalBinary($bin);
             if (is_file($findCmdResult)) {
                 $this->logger->log(Lang::get('found_in_path', '', $bin), LogLevel::DEBUG);
-                $binaryPath = $findCmdResult;
-                break;
+                return $findCmdResult;
             }
         }
-        return $binaryPath;
+        return null;
     }
 
     /**

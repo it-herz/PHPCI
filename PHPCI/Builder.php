@@ -311,6 +311,11 @@ class Builder implements LoggerAwareInterface
             $this->ignore = $this->config['build_settings']['ignore'];
         }
 
+        // Does the project have binaries in exotic places ?
+        if (isset($this->config['build_settings']['binary_paths'])) {
+            $this->commandExecutor->setBinaryPaths($this->config['build_settings']['binary_paths']);
+        }
+
         $this->buildLogger->logSuccess(Lang::get('working_copy_created', $this->buildPath));
         return true;
     }
