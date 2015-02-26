@@ -85,3 +85,8 @@
     font-size: inherit;
     line-height: inherit;
 }
+
+#plugins .table-responsive {
+	max-height: 300px;
+	overflow: auto;
+}
