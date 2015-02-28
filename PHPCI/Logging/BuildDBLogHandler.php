@@ -27,18 +27,23 @@ class BuildDBLogHandler extends AbstractProcessingHandler
 
     protected $logValue;
 
+    protected $stripBuildPath;
+
     /**
      * @param Build $build
+     * @param bool $stripBuildPath
      * @param bool $level
      * @param bool $bubble
      */
     public function __construct(
         Build $build,
+        $stripBuildPath = true,
         $level = LogLevel::INFO,
         $bubble = true
     ) {
         parent::__construct($level, $bubble);
         $this->build = $build;
+        $this->stripBuildPath = $stripBuildPath;
         // We want to add to any existing saved log information.
         $this->logValue = $build->getLog();
     }
@@ -50,7 +55,9 @@ class BuildDBLogHandler extends AbstractProcessingHandler
     protected function write(array $record)
     {
         $message = (string)$record['message'];
-        $message = str_replace($this->build->currentBuildPath, '/', $message);
+        if($this->stripBuildPath) {
+            $message = str_replace($this->build->currentBuildPath, '/', $message);
+        }
 
         $this->logValue .= $message . PHP_EOL;
         $this->build->setLog($this->logValue);

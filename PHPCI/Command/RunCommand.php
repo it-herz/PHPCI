@@ -83,6 +83,8 @@ class RunCommand extends Command
             );
         }
 
+        $stripBuildPath = Config::getInstance()->get('phpci.log.strip-build-path', true);
+
         $running = $this->validateRunningBuilds();
 
         $this->logger->pushProcessor(new LoggedBuildContextTidier());
@@ -112,7 +114,7 @@ class RunCommand extends Command
             try {
                 // Logging relevant to this build should be stored
                 // against the build itself.
-                $buildDbLog = new BuildDBLogHandler($build, Logger::INFO);
+                $buildDbLog = new BuildDBLogHandler($build, $stripBuildPath, Logger::INFO);
                 $this->logger->pushHandler($buildDbLog);
 
                 $builder = new Builder($build, $this->logger);
