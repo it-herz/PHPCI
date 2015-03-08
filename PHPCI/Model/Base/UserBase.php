@@ -38,6 +38,8 @@ class UserBase extends Model
         'hash' => null,
         'is_admin' => null,
         'name' => null,
+        'provider_key' => null,
+        'provider_data' => null,
     );
 
     /**
@@ -50,6 +52,8 @@ class UserBase extends Model
         'hash' => 'getHash',
         'is_admin' => 'getIsAdmin',
         'name' => 'getName',
+        'provider_key' => 'getProviderKey',
+        'provider_data' => 'getProviderData',
 
         // Foreign key getters:
     );
@@ -64,6 +68,8 @@ class UserBase extends Model
         'hash' => 'setHash',
         'is_admin' => 'setIsAdmin',
         'name' => 'setName',
+        'provider_key' => 'setProviderKey',
+        'provider_data' => 'setProviderData',
 
         // Foreign key setters:
     );
@@ -89,13 +95,24 @@ class UserBase extends Model
             'length' => 250,
             'default' => null,
         ),
+        'name' => array(
+            'type' => 'varchar',
+            'length' => 250,
+            'default' => null,
+        ),
         'is_admin' => array(
             'type' => 'int',
             'length' => 11,
         ),
-        'name' => array(
+        'provider_key' => array(
             'type' => 'varchar',
-            'length' => 250,
+            'length' => 255,
+            'default' => 'internal',
+        ),
+        'provider_data' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'nullable' => true,
             'default' => null,
         ),
     );
@@ -151,6 +168,18 @@ class UserBase extends Model
     }
 
     /**
+    * Get the value of Name / name.
+    *
+    * @return string
+    */
+    public function getName()
+    {
+        $rtn    = $this->data['name'];
+
+        return $rtn;
+    }
+
+    /**
     * Get the value of IsAdmin / is_admin.
     *
     * @return int
@@ -163,13 +192,25 @@ class UserBase extends Model
     }
 
     /**
-    * Get the value of Name / name.
+    * Get the value of ProviderKey / provider_key.
     *
     * @return string
     */
-    public function getName()
+    public function getProviderKey()
     {
-        $rtn    = $this->data['name'];
+        $rtn    = $this->data['provider_key'];
+
+        return $rtn;
+    }
+
+    /**
+    * Get the value of ProviderData / provider_data.
+    *
+    * @return string
+    */
+    public function getProviderData()
+    {
+        $rtn    = $this->data['provider_data'];
 
         return $rtn;
     }
@@ -235,6 +276,26 @@ class UserBase extends Model
     }
 
     /**
+    * Set the value of Name / name.
+    *
+    * Must not be null.
+    * @param $value string
+    */
+    public function setName($value)
+    {
+        $this->_validateNotNull('Name', $value);
+        $this->_validateString('Name', $value);
+
+        if ($this->data['name'] === $value) {
+            return;
+        }
+
+        $this->data['name'] = $value;
+
+        $this->_setModified('name');
+    }
+
+    /**
     * Set the value of IsAdmin / is_admin.
     *
     * Must not be null.
@@ -255,22 +316,40 @@ class UserBase extends Model
     }
 
     /**
-    * Set the value of Name / name.
+    * Set the value of ProviderKey / provider_key.
     *
     * Must not be null.
     * @param $value string
     */
-    public function setName($value)
+    public function setProviderKey($value)
     {
-        $this->_validateNotNull('Name', $value);
-        $this->_validateString('Name', $value);
+        $this->_validateNotNull('ProviderKey', $value);
+        $this->_validateString('ProviderKey', $value);
 
-        if ($this->data['name'] === $value) {
+        if ($this->data['provider_key'] === $value) {
             return;
         }
 
-        $this->data['name'] = $value;
+        $this->data['provider_key'] = $value;
 
-        $this->_setModified('name');
+        $this->_setModified('provider_key');
+    }
+
+    /**
+    * Set the value of ProviderData / provider_data.
+    *
+    * @param $value string
+    */
+    public function setProviderData($value)
+    {
+        $this->_validateString('ProviderData', $value);
+
+        if ($this->data['provider_data'] === $value) {
+            return;
+        }
+
+        $this->data['provider_data'] = $value;
+
+        $this->_setModified('provider_data');
     }
 }
