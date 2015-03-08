@@ -2,7 +2,7 @@
 /**
  * PHPCI - Continuous Integration for PHP
  *
- * @copyright    Copyright 2014, Block 8 Limited.
+ * @copyright    Copyright 2015, Block 8 Limited.
  * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
  * @link         https://www.phptesting.org/
  */
@@ -14,11 +14,11 @@ use PHPCI\Helper\Email;
 use PHPCI\Helper\Lang;
 
 /**
-* Session Controller - Handles user login / logout.
-* @author       Dan Cryer <dan@block8.co.uk>
-* @package      PHPCI
-* @subpackage   Web
-*/
+ * Session Controller - Handles user login / logout.
+ * @author       Dan Cryer <dan@block8.co.uk>
+ * @package      PHPCI
+ * @subpackage   Web
+ */
 class SessionController extends \PHPCI\Controller
 {
     /**
@@ -27,37 +27,64 @@ class SessionController extends \PHPCI\Controller
     protected $userStore;
 
     /**
+     * @var \PHPCI\Security\Authentication\Service
+     */
+    protected $authentication;
+
+    /**
      * Initialise the controller, set up stores and services.
      */
     public function init()
     {
         $this->response->disableLayout();
         $this->userStore       = b8\Store\Factory::getStore('User');
+        $this->authentication  = \PHPCI\Security\Authentication\Service::getInstance();
     }
 
     /**
-    * Handles user login (form and processing)
-    */
+     * Handles user login (form and processing)
+     */
     public function login()
     {
         $isLoginFailure = false;
 
         if ($this->request->getMethod() == 'POST') {
-            $user = $this->userStore->getByEmail($this->getParam('email'));
 
-            if ($user && password_verify($this->getParam('password', ''), $user->getHash())) {
-                $_SESSION['phpci_user_id']    = $user->getId();
+            $email = $this->getParam('email');
+            $password = $this->getParam('password', '');
+            $isLoginFailure = true;
+
+            $user = $this->userStore->getByEmail($email);
+
+            $providers = $this->authentication->getLoginPasswordProviders();
+
+            if (null !== $user) {
+                // Delegate password verification to the user provider, if found
+                $key = $user->getProviderKey();
+                $isLoginFailure = !isset($providers[$key]) || !$providers[$key]->verifyPassword($user, $password);
+            } else {
+                // Ask each providers to provision the user
+                foreach ($providers as $provider) {
+                    $user = $provider->provisionUser($email);
+                    if ($user !== null && $provider->verifyPassword($user, $password)) {
+                        $this->userStore->save($user);
+                        $isLoginFailure = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!$isLoginFailure) {
+                $_SESSION['phpci_user_id'] = $user->getId();
                 $response = new b8\Http\Response\RedirectResponse();
                 $response->setHeader('Location', $this->getLoginRedirect());
                 return $response;
-            } else {
-                $isLoginFailure = true;
             }
         }
 
         $form = new b8\Form();
         $form->setMethod('POST');
-        $form->setAction(PHPCI_URL.'session/login');
+        $form->setAction(PHPCI_URL . 'session/login');
 
         $email = new b8\Form\Element\Email('email');
         $email->setLabel(Lang::get('email_address'));
@@ -80,7 +107,7 @@ class SessionController extends \PHPCI\Controller
 
         $this->view->form = $form->render();
         $this->view->failed = $isLoginFailure;
-        
+
         return $this->view->render();
     }
 
