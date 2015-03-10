@@ -1,4 +1,5 @@
 <?php
+
 /**
  * PHPCI - Continuous Integration for PHP
  *
@@ -10,10 +11,9 @@
 namespace PHPCI\Command;
 
 use b8\Store\Factory;
-use Monolog\Logger;
+use PHPCI\Command\RunCommand;
 use PHPCI\Service\BuildService;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\ArgvInput;
+use PHPCI\Store\BuildStore;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -23,38 +23,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 * @package      PHPCI
 * @subpackage   Console
 */
-class RebuildCommand extends Command
+class RebuildCommand extends RunCommand
 {
-    /**
-     * @var Logger
-     */
-    protected $logger;
-
-    /**
-     * @var OutputInterface
-     */
-    protected $output;
-
-    /**
-     * @var boolean
-     */
-    protected $run;
-
-    /**
-     * @var int
-     */
-    protected $sleep;
-
-    /**
-     * @param \Monolog\Logger $logger
-     * @param string $name
-     */
-    public function __construct(Logger $logger, $name = null)
-    {
-        parent::__construct($name);
-        $this->logger = $logger;
-    }
-
     protected function configure()
     {
         $this
@@ -63,30 +33,19 @@ class RebuildCommand extends Command
     }
 
     /**
-    * Loops through running.
+    * Duplicates the last build and runs it.
     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $runner = new RunCommand($this->logger);
-        $runner->setMaxBuilds(1);
-        $runner->setDaemon(false);
+        $this->setupLogging($input, $output);
 
-        /** @var \PHPCI\Store\BuildStore $store */
+        /** @var BuildStore $store */
         $store = Factory::getStore('Build');
         $service = new BuildService($store);
 
         $lastBuild = array_shift($store->getLatestBuilds(null, 1));
-        $service->createDuplicateBuild($lastBuild);
+        $build = $service->createDuplicateBuild($lastBuild);
 
-        $runner->run(new ArgvInput(array()), $output);
-    }
-
-    /**
-    * Called when log entries are made in Builder / the plugins.
-    * @see \PHPCI\Builder::log()
-    */
-    public function logCallback($log)
-    {
-        $this->output->writeln($log);
+        $this->runBuild($build);
     }
 }
