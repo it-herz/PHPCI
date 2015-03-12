@@ -55,15 +55,12 @@ class DaemoniseCommand extends RunCommand
             if ($build) {
                 $this->runBuild($build);
                 $sleep = 0;
-                echo 'build';
             } else {
                 if ($sleep < $maxSleep) {
                     $sleep++;
                 }
                 sleep($sleep);
             }
-
-            echo '.';
         }
     }
 }
