@@ -131,7 +131,7 @@ class RunCommand extends Command
     protected function runBuild(Build $build)
     {
         $build = BuildFactory::getBuild($build);
-        $this->logger->addInfo("Running build ".$build->getId());
+        $this->logger->addInfo(sprintf("Running build %s", $build->getId()));
 
         $buildDbLog = new BuildDBLogHandler($build, Logger::INFO);
         $this->logger->pushHandler($buildDbLog);
@@ -149,7 +149,7 @@ class RunCommand extends Command
 
         $this->removeBuildDirectory($build);
         $this->logger->popHandler($buildDbLog);
-        $this->logger->addInfo("Build ".$build->getId()." ended");
+        $this->logger->addInfo(sprintf("Build %d ended", $build->getId()));
     }
 
     /**
