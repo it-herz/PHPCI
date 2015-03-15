@@ -11,8 +11,6 @@ namespace PHPCI\Command;
 
 use b8\Config;
 use b8\Store\Factory;
-use DateTime;
-use Exception;
 use Monolog\Logger;
 use PHPCI\Builder;
 use PHPCI\BuildFactory;
@@ -144,9 +142,9 @@ class RunCommand extends Command
             $builder = new Builder($build, $this->logger);
             $builder->execute();
 
-        } catch (Exception $ex) {
+        } catch (\Exception $ex) {
             $build->setStatus(Build::STATUS_FAILED);
-            $build->setFinished(new DateTime());
+            $build->setFinished(new \DateTime());
             $build->setLog($build->getLog() . PHP_EOL . PHP_EOL . $ex->getMessage());
             Factory::getStore('Build')->save($build);
         }
@@ -180,7 +178,7 @@ class RunCommand extends Command
             if (($now - $start) > $timeout) {
                 $this->logger->addInfo(Lang::get('marked_as_failed', $build->getId()));
                 $build->setStatus(Build::STATUS_FAILED);
-                $build->setFinished(new DateTime());
+                $build->setFinished(new \DateTime());
                 $store->save($build);
                 $this->removeBuildDirectory($build);
                 continue;
