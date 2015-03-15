@@ -42,7 +42,7 @@ class DaemoniseCommand extends RunCommand
     {
         $this->setupLogging($input, $output);
 
-        file_put_contents(PHPCI_DIR."/daemon/daemon.pid", getmypid());
+        file_put_contents(PHPCI_DIR . DIRECTORY_SEPARATOR . "daemon" . DIRECTORY_SEPARATOR . "daemon.pid", getmypid());
 
         $maxSleep = (int)$input->getOption('interval');
 
