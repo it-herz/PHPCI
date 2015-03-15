@@ -121,8 +121,6 @@ class RunCommand extends Command
                 return $build;
             }
         }
-
-        return null;
     }
 
     /**
