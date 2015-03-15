@@ -155,7 +155,8 @@ class RunCommand extends Command
     /**
      * Checks all running builds, and kills those that seem dead.
      *
-     * @return array An array of projects having running builds.
+     * @return array An array with project identifiers as keys, for projets
+     *               that have running builds.
      */
     protected function validateRunningBuilds()
     {
