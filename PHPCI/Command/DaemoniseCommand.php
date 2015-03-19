@@ -40,8 +40,6 @@ class DaemoniseCommand extends RunCommand
     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->setupLogging($input, $output);
-
         file_put_contents(PHPCI_DIR . DIRECTORY_SEPARATOR . "daemon" . DIRECTORY_SEPARATOR . "daemon.pid", getmypid());
 
         $maxSleep = (int)$input->getOption('interval');

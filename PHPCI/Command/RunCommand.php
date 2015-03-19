@@ -68,8 +68,10 @@ class RunCommand extends Command
      * @param InputInterface $input
      * @param OutputInterface $output
      */
-    protected function setupLogging(InputInterface $input, OutputInterface $output)
+    protected function initialize(InputInterface $input, OutputInterface $output)
     {
+        parent::initialize($input, $output);
+
         $this->logger->pushProcessor(new LoggedBuildContextTidier());
 
         // For verbose mode we want to output all informational and above
@@ -86,8 +88,6 @@ class RunCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->setupLogging($input, $output);
-
         $builds = (int)$input->getOption('max-builds');
 
         do {

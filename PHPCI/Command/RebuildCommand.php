@@ -37,8 +37,6 @@ class RebuildCommand extends RunCommand
     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->setupLogging($input, $output);
-
         /** @var BuildStore $store */
         $store = Factory::getStore('Build');
         $service = new BuildService($store);
