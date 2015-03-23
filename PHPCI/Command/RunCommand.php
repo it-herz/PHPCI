@@ -12,14 +12,11 @@ namespace PHPCI\Command;
 use b8\Config;
 use b8\Store\Factory;
 use Monolog\Logger;
-use PHPCI\Builder;
 use PHPCI\BuildFactory;
 use PHPCI\Helper\Lang;
-use PHPCI\Logging\BuildDBLogHandler;
+use PHPCI\Helper\Runner;
 use PHPCI\Logging\LoggedBuildContextTidier;
 use PHPCI\Logging\OutputLogHandler;
-use PHPCI\Model\Build;
-use PHPCI\Store\BuildStore;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -37,6 +34,12 @@ class RunCommand extends Command
      * @var Logger
      */
     protected $logger;
+
+    /**
+     *
+     * @var Runner
+     */
+    protected $runner;
 
     /**
      * @param Logger $logger
@@ -77,10 +80,14 @@ class RunCommand extends Command
         // For verbose mode we want to output all informational and above
         // messages to the symphony output interface.
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-            $this->logger->pushHandler(
-                new OutputLogHandler($output, Logger::INFO)
-            );
+            $this->logger->pushHandler(new OutputLogHandler($output, Logger::INFO));
         }
+
+        $this->runner = new Runner(
+            $this->logger,
+            Factory::getStore('Build'),
+            Config::getInstance()->get('phpci.build.failed_after', 1800)
+        );
     }
 
     /**
@@ -90,124 +97,10 @@ class RunCommand extends Command
     {
         $builds = (int)$input->getOption('max-builds');
 
-        do {
-            $build = $this->findNextBuild();
-            if ($build) {
-                $this->runBuild($build);
-                $builds--;
-            }
-        } while ($build && $builds > 0);
-
-        $this->logger->addInfo(Lang::get('finished_processing_builds'));
-    }
-
-    /**
-     * Find a pending build for a project which has no running builds.
-     *
-     * @return Build|null
-     */
-    protected function findNextBuild()
-    {
-        $running = $this->validateRunningBuilds();
-
-        $this->logger->addInfo(Lang::get('finding_builds'));
-        $result = Factory::getStore('Build')->getByStatus(Build::STATUS_NEW);
-        $this->logger->addInfo(Lang::get('found_n_builds', count($result['items'])));
-
-        foreach ($result['items'] as $build) {
-            if (isset($running[$build->getProjectId()])) {
-                $this->logger->addInfo(Lang::get('skipping_build', $build->getId()));
-            } else {
-                return $build;
-            }
-        }
-    }
-
-    /**
-     * Runs one build and cleans up after it finishes.
-     *
-     * @param Build $build
-     */
-    protected function runBuild(Build $build)
-    {
-        $build = BuildFactory::getBuild($build);
-        $this->logger->addInfo(sprintf("Running build %s", $build->getId()));
-
-        $buildDbLog = new BuildDBLogHandler($build, Logger::INFO);
-        $this->logger->pushHandler($buildDbLog);
-
-        try {
-            $builder = new Builder($build, $this->logger);
-            $builder->execute();
-
-        } catch (\Exception $ex) {
-            $build->setStatus(Build::STATUS_FAILED);
-            $build->setFinished(new \DateTime());
-            $build->setLog($build->getLog() . PHP_EOL . PHP_EOL . $ex->getMessage());
-            Factory::getStore('Build')->save($build);
+        while(($build = $this->runner->next()) && $builds-- > 0) {
+            $this->runner->run(BuildFactory::getBuild($build));
         }
 
-        $this->removeBuildDirectory($build);
-        $this->logger->popHandler($buildDbLog);
-        $this->logger->addInfo(sprintf("Build %d ended", $build->getId()));
-    }
-
-    /**
-     * Checks all running builds, and kills those that seem dead.
-     *
-     * @return array An array with project identifiers as keys, for projets
-     *               that have running builds.
-     */
-    protected function validateRunningBuilds()
-    {
-        /** @var BuildStore $store */
-        $store = Factory::getStore('Build');
-        $running = $store->getByStatus(1);
-        $rtn = array();
-
-        $timeout = Config::getInstance()->get('phpci.build.failed_after', 1800);
-
-        foreach ($running['items'] as $build) {
-            /** @var Build $build */
-            $build = BuildFactory::getBuild($build);
-
-            $now = time();
-            $start = $build->getStarted()->getTimestamp();
-
-            if (($now - $start) > $timeout) {
-                $this->logger->addInfo(Lang::get('marked_as_failed', $build->getId()));
-                $build->setStatus(Build::STATUS_FAILED);
-                $build->setFinished(new \DateTime());
-                $store->save($build);
-                $this->removeBuildDirectory($build);
-                continue;
-            }
-
-            $rtn[$build->getProjectId()] = true;
-        }
-
-        return $rtn;
-    }
-
-    /**
-     * Remove the build directory of a finished build.
-     *
-     * @param Build $build
-     *
-     * @todo Move this to the Build class.
-     */
-    protected function removeBuildDirectory(Build $build)
-    {
-        $buildPath = PHPCI_DIR . 'PHPCI/build/' . $build->getId() . '/';
-
-        if (is_dir($buildPath)) {
-            $cmd = 'rm -Rf "%s"';
-
-            if (IS_WIN) {
-                $cmd = 'rmdir /S /Q "%s"';
-            }
-
-            exec($cmd);
-        }
+        $this->logger->info(Lang::get('finished_processing_builds'));
     }
 }
