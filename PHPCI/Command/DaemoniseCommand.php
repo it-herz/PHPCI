@@ -9,9 +9,10 @@
 
 namespace PHPCI\Command;
 
+use Exception;
 use Monolog\Logger;
+use PHPCI\Helper\MutexLock;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -34,17 +35,12 @@ class DaemoniseCommand extends Command
     protected $output;
 
     /**
-     * @var boolean
+     * @var bool
      */
-    protected $run;
+    protected $running;
 
     /**
-     * @var int
-     */
-    protected $sleep;
-
-    /**
-     * @param \Monolog\Logger $logger
+     * @param Logger $logger
      * @param string $name
      */
     public function __construct(Logger $logger, $name = null)
@@ -61,50 +57,61 @@ class DaemoniseCommand extends Command
     }
 
     /**
-    * Loops through running.
-    */
+     * Loops through running.
+     *
+     * @SuppressWarnings("unused")
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $cmd = "echo %s > '%s/daemon/daemon.pid'";
-        $command = sprintf($cmd, getmypid(), PHPCI_DIR);
-        exec($command);
-
-        $this->output = $output;
-        $this->run   = true;
-        $this->sleep = 0;
-        $runner      = new RunCommand($this->logger);
-        $runner->setMaxBuilds(1);
-        $runner->setDaemon(true);
-
-        $emptyInput = new ArgvInput(array());
-
-        while ($this->run) {
-
-            $buildCount = 0;
-
-            try {
-                $buildCount = $runner->run($emptyInput, $output);
-            } catch (\Exception $e) {
-                $output->writeln('<error>Exception: ' . $e->getMessage() . '</error>');
-                $output->writeln('<error>Line: ' . $e->getLine() . ' - File: ' . $e->getFile() . '</error>');
-            }
-
-            if (0 == $buildCount && $this->sleep < 15) {
-                $this->sleep++;
-            } elseif (1 < $this->sleep) {
-                $this->sleep--;
-            }
-            echo '.'.(0 === $buildCount?'':'build');
-            sleep($this->sleep);
+        $daemonLock = new MutexLock(PHPCI_DIR . 'daemon/daemon.pid');
+        if (!$daemonLock->acquire()) {
+            $pid = $daemonLock->getOwnerPid();
+            throw new Exception("PID file locked; is another daemon already running with PID $pid ?");
         }
+
+        $this->installSignalHandler();
+
+        $this->logger->notice('Daemon started', array('pid' => getmypid()));
+
+        $command = sprintf('php %s/console phpci:run-builds', PHPCI_DIR);
+        $this->logger->debug("Using command '$command'");
+
+        for ($this->running = true; $this->running; sleep(15)) {
+            exec($command);
+        }
+
+        $this->logger->notice('Daemon exiting');
     }
 
     /**
-    * Called when log entries are made in Builder / the plugins.
-    * @see \PHPCI\Builder::log()
-    */
-    public function logCallback($log)
+     * Install a signal handler if the pcntl extension is available.
+     */
+    public function installSignalHandler()
     {
-        $this->output->writeln($log);
+        if (!function_exists('pcntl_signal')) {
+            return;
+        }
+
+        pcntl_signal(SIGTERM, array($this, 'handleSignal'));
+        pcntl_signal(SIGINT, array($this, 'handleSignal'));
+        pcntl_signal(SIGCHLD, array($this, 'handleSignal'));
+        pcntl_signal(SIGHUP, SIG_IGN);
+
+        register_tick_function('pcntl_signal_dispatch');
+        declare(ticks=5);
+    }
+
+    /**
+     *
+     * @param type $signo
+     */
+    public function handleSignal($signo)
+    {
+        $this->logger->info(sprintf('Received signal %d', $signo));
+
+        // Shutdown on SIGTERM and SIGINT
+        if ($signo === SIGTERM || $signo === SIGINT) {
+            $this->running = false;
+        }
     }
 }
