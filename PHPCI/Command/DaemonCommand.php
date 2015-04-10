@@ -10,6 +10,7 @@
 namespace PHPCI\Command;
 
 use Monolog\Logger;
+use PHPCI\Helper\MutexLock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,7 +25,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class DaemonCommand extends Command
 {
     /**
-     * @var \Monolog\Logger
+     * @var Logger
      */
     protected $logger;
 
@@ -47,8 +48,10 @@ class DaemonCommand extends Command
     }
 
     /**
-    * Loops through running.
-    */
+     * Loops through running.
+     *
+     * @SuppressWarnings(unused)
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $state = $input->getArgument('state');
@@ -72,8 +75,8 @@ class DaemonCommand extends Command
 
     protected function startDaemon()
     {
-
-        if (file_exists(PHPCI_DIR.'/daemon/daemon.pid')) {
+        $lock = new MutexLock(PHPCI_DIR.'/daemon/daemon.pid');
+        if ($lock->getOwnerPid()) {
             echo "Already started\n";
             $this->logger->warning("Daemon already started");
             return "alreadystarted";
@@ -88,36 +91,25 @@ class DaemonCommand extends Command
 
     protected function stopDaemon()
     {
-
-        if (!file_exists(PHPCI_DIR.'/daemon/daemon.pid')) {
+        $lock = new MutexLock(PHPCI_DIR.'/daemon/daemon.pid');
+        $pid = $lock->getOwnerPid();
+        if (!$pid) {
             echo "Not started\n";
             $this->logger->warning("Can't stop daemon as not started");
             return "notstarted";
         }
 
-        $cmd = "kill $(cat %s/daemon/daemon.pid)";
-        $command = sprintf($cmd, PHPCI_DIR);
-        exec($command);
+        exec(sprintf("kill %d", $pid));
         $this->logger->info("Daemon stopped");
-        unlink(PHPCI_DIR.'/daemon/daemon.pid');
     }
 
     protected function statusDaemon()
     {
-
-        if (!file_exists(PHPCI_DIR.'/daemon/daemon.pid')) {
-            echo "Not running\n";
-            return "notrunning";
-        }
-
-        $pid = trim(file_get_contents(PHPCI_DIR.'/daemon/daemon.pid'));
-        $pidcheck = sprintf("/proc/%s", $pid);
-        if (is_dir($pidcheck)) {
+        $lock = new MutexLock(PHPCI_DIR.'/daemon/daemon.pid');
+        if ($lock->getOwnerPid()) {
             echo "Running\n";
             return "running";
         }
-
-        unlink(PHPCI_DIR.'/daemon/daemon.pid');
         echo "Not running\n";
         return "notrunning";
     }
