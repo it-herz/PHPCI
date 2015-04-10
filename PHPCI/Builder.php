@@ -129,6 +129,44 @@ class Builder implements LoggerAwareInterface
     }
 
     /**
+     * Clean up our mess
+     */
+    public function __destruct()
+    {
+        // Remove the working directory
+        if (file_exists($this->buildPath)) {
+            try {
+                $this->buildLogger->log(Lang::get('removing_build'));
+                $cmd = 'rm -Rf "%s"';
+                if (IS_WIN) {
+                    $cmd = 'rmdir /S /Q "%s"';
+                }
+                $this->executeCommand($cmd, rtrim($this->buildPath, '/'));
+            } catch (\Exception $ex) {
+                $this->buildLogger->log(
+                    sprintf("Failed to remove the working directory: %s", $ex->getMessage()),
+                    LogLevel::WARNING
+                );
+            }
+        }
+
+        // If the build is still marked as running, fix it
+        if ($this->build->getStatus() === Build::STATUS_RUNNING) {
+            try {
+                $this->build->setStatus(Build::STATUS_FAILED);
+                $this->build->setFinished(new \DateTime());
+                $this->buildLogger->logFailure("Build terminated abnormally.");
+                $this->store->save($this->build);
+            } catch (\Exception $ex) {
+                $this->buildLogger->log(
+                    sprintf("Failed to finish the build: %s", $ex->getMessage()),
+                    LogLevel::WARNING
+                );
+            }
+        }
+    }
+
+    /**
      * Set the config array, as read from phpci.yml
      * @param array|null $config
      * @throws \Exception
@@ -215,20 +253,10 @@ class Builder implements LoggerAwareInterface
                 $this->pluginExecutor->executePlugins($this->config, 'failure');
                 $this->buildLogger->logFailure(Lang::get('build_failed'));
             }
-
-            // Clean up:
-            $this->buildLogger->log(Lang::get('removing_build'));
-
-            $cmd = 'rm -Rf "%s"';
-            if (IS_WIN) {
-                $cmd = 'rmdir /S /Q "%s"';
-            }
-            $this->executeCommand($cmd, rtrim($this->buildPath, '/'));
         } catch (\Exception $ex) {
             $this->build->setStatus(Build::STATUS_FAILED);
             $this->buildLogger->logFailure(Lang::get('exception') . $ex->getMessage());
         }
-
 
         // Update the build in the database, ping any external services, etc.
         $this->build->sendStatusPostback();
