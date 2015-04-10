@@ -98,6 +98,11 @@ class Builder implements LoggerAwareInterface
     protected $buildLogger;
 
     /**
+     * @var Helper\MutexLock
+     */
+    protected $lock;
+
+    /**
      * Set up the builder.
      * @param \PHPCI\Model\Build $build
      * @param LoggerInterface $logger
@@ -126,6 +131,8 @@ class Builder implements LoggerAwareInterface
         );
 
         $this->interpolator = new BuildInterpolator();
+
+        $this->lock = new Helper\MutexLock(PHPCI_BUILD_ROOT_DIR . $build->getId() . '.lock');
     }
 
     /**
@@ -164,6 +171,9 @@ class Builder implements LoggerAwareInterface
                 );
             }
         }
+
+        // Release the lock
+        $this->lock->release();
     }
 
     /**
@@ -219,6 +229,11 @@ class Builder implements LoggerAwareInterface
      */
     public function execute()
     {
+        if (!$this->lock->acquire()) {
+            $pid = $this->lock->getOwnerPid();
+            throw new \Exception("Cannot acquire the build lock; is this build already running (PID $pid) ?");
+        }
+
         // Update the build in the database, ping any external services.
         $this->build->setStatus(Build::STATUS_RUNNING);
         $this->build->setStarted(new \DateTime());
