@@ -120,14 +120,11 @@ class Builder implements LoggerAwareInterface
         $pluginFactory->addConfigFromFile(PHPCI_DIR . "/pluginconfig.php");
         $this->pluginExecutor = new Plugin\Util\Executor($pluginFactory, $this->buildLogger);
 
-        $executorClass = 'PHPCI\Helper\UnixCommandExecutor';
-        if (IS_WIN) {
-            $executorClass = 'PHPCI\Helper\WindowsCommandExecutor';
-        }
-
         $this->environment = new Environment();
+        $this->environment->addPath(PHPCI_BIN_DIR);
+        $this->environment->addPath(PHPCI_DIR);
 
-        $this->commandExecutor = new $executorClass(
+        $this->commandExecutor = new BaseCommandExecutor(
             $this->buildLogger,
             PHPCI_DIR,
             $this->environment,

@@ -18,7 +18,7 @@ use PHPCI\Helper\Lang;
  * Handles running system commands with variables.
  * @package PHPCI\Helper
  */
-abstract class BaseCommandExecutor implements CommandExecutor
+class BaseCommandExecutor implements CommandExecutor
 {
     /**
      * @var \PHPCI\Logging\BuildLogger
@@ -51,13 +51,6 @@ abstract class BaseCommandExecutor implements CommandExecutor
     public $logExecOutput = true;
 
     /**
-     * The path which findBinary will look in.
-     *
-     * @var string
-     */
-    protected $rootDir;
-
-    /**
      * Current build path
      *
      * @var string
@@ -71,14 +64,12 @@ abstract class BaseCommandExecutor implements CommandExecutor
 
     /**
      * @param BuildLogger $logger
-     * @param string      $rootDir
      * @param Environment $environment
      * @param bool        $quiet
      * @param bool        $verbose
      */
     public function __construct(
         BuildLogger $logger,
-        $rootDir,
         Environment $environment = null,
         &$quiet = false,
         &$verbose = false
@@ -87,7 +78,6 @@ abstract class BaseCommandExecutor implements CommandExecutor
         $this->quiet = $quiet;
         $this->verbose = $verbose;
         $this->lastOutput = array();
-        $this->rootDir = $rootDir;
         $this->environment = $environment ? $environment : new Environment();
     }
 
@@ -159,15 +149,11 @@ abstract class BaseCommandExecutor implements CommandExecutor
      */
     protected function formatArguments(array $arguments)
     {
-        switch (count($arguments)) {
-            case 0:
-                // todo: throw an exception ?
-                return '';
-            case 1:
-                return $arguments[0];
-            default:
-                return call_user_func_array('sprintf', $arguments);
+        $format = array_shift($arguments);
+        if (!empty($arguments)) {
+            return vsprintf($format, $arguments);
         }
+        return $format;
     }
 
     /**
@@ -195,44 +181,24 @@ abstract class BaseCommandExecutor implements CommandExecutor
      */
     public function findBinary($binary)
     {
-        $binaryPath = null;
         if (is_string($binary)) {
             $binary = array($binary);
         }
 
-        foreach ($binary as $bin) {
-            $this->logger->log(Lang::get('looking_for_binary', $bin), LogLevel::DEBUG);
+        $this->logger->log(Lang::get('looking_for_binary', implode(', ', $binary)), LogLevel::DEBUG);
 
-            if (is_file($this->rootDir . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'root', $bin), LogLevel::DEBUG);
-                $binaryPath = $this->rootDir . $bin;
-                break;
-            }
+        $command = IS_WIN ? 'where' : 'which';
+        $arguments = implode(' ', array_map('escapeshellarg', $binary));
 
-            if (is_file($this->rootDir . 'vendor/bin/' . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'vendor/bin', $bin), LogLevel::DEBUG);
-                $binaryPath = $this->rootDir . 'vendor/bin/' . $bin;
-                break;
-            }
-
-            $findCmdResult = $this->findGlobalBinary($bin);
-            if (is_file($findCmdResult)) {
-                $this->logger->log(Lang::get('found_in_path', '', $bin), LogLevel::DEBUG);
-                $binaryPath = $findCmdResult;
-                break;
-            }
+        if (!$this->executeCommand(array('%s %s', $command, $arguments))) {
+            $this->logger->log(sprintf('Binary not found: %s', implode(', ', $binary)), LogLevel::WARNING);
+            return null;
         }
-        return $binaryPath;
-    }
 
-    /**
-     * Find a binary which is installed globally on the system
-     *
-     * @param string $binary
-     *
-     * @return null|string
-     */
-    abstract protected function findGlobalBinary($binary);
+        $path = trim($this->lastOutput[0]);
+        $this->logger->log(Lang::get('found_in_path', dirname($path), basename($path)), LogLevel::DEBUG);
+        return $path;
+    }
 
     /**
      * Set the buildPath property.
