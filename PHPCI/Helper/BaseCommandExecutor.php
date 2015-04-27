@@ -90,19 +90,33 @@ abstract class BaseCommandExecutor implements CommandExecutor
             $this->logger->debug(sprintf('Command "%s" exited with status %d', $command, $status));
         }
 
-        $this->lastOutput = array_filter(explode(PHP_EOL, $this->lastOutput));
-
         $success = ($status == 0);
 
-        if (!empty($this->lastOutput)) {
-            $this->logger->info($this->getLastOutput());
-        }
+        $this->logLines(LogLevel::INFO, $this->lastOutput);
+        $this->logLines($success ? LogLevel::WARNING : LogLevel::ERROR, $this->lastError);
 
-        if (!empty($this->lastError)) {
-            $this->logger->log($success ? LogLevel::WARNING : LogLevel::ERROR, $this->lastError);
-        }
+        $this->lastOutput = array_filter(explode(PHP_EOL, $this->lastOutput));
 
         return $success;
+    }
+
+    /**
+     * Spit multi-line content to the logger.
+     *
+     * Ignore empty lines.
+     *
+     * @param int $level
+     * @param string $content
+     */
+    protected function logLines($level, $content)
+    {
+        $lines = array_filter(array_map('rtrim', explode(PHP_EOL, $content)), 'strlen');
+        if (empty($lines)) {
+            return;
+        }
+        foreach ($lines as $line) {
+            $this->logger->log($level, $line);
+        }
     }
 
     /**
