@@ -26,9 +26,9 @@ class CommandExecutorTest extends \PHPUnit_Framework_TestCase
             return;
         }
         parent::setUp();
-        $mockBuildLogger = $this->prophesize('PHPCI\Logging\BuildLogger');
+        $mockLogger = $this->prophesize('Psr\Log\LoggerInterface');
         $class = IS_WIN ? 'PHPCI\Helper\WindowsCommandExecutor' : 'PHPCI\Helper\UnixCommandExecutor';
-        $this->testedExecutor = new $class($mockBuildLogger->reveal(), __DIR__ . "/");
+        $this->testedExecutor = new $class($mockLogger->reveal(), __DIR__ . "/");
     }
 
     public function testGetLastOutput_ReturnsOutputOfCommand()

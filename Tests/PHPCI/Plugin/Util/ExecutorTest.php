@@ -27,9 +27,9 @@ class ExecutorTest extends \PHPUnit_Framework_TestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->mockBuildLogger = $this->prophesize('\PHPCI\Logging\BuildLogger');
+        $this->mockLogger = $this->prophesize('Psr\Log\LoggerInterface');
         $this->mockFactory = $this->prophesize('\PHPCI\Plugin\Util\Factory');
-        $this->testedExecutor = new Executor($this->mockFactory->reveal(), $this->mockBuildLogger->reveal());
+        $this->testedExecutor = new Executor($this->mockFactory->reveal(), $this->mockLogger->reveal());
     }
 
     public function testExecutePlugin_AssumesPHPCINamespaceIfNoneGiven()
@@ -92,7 +92,7 @@ class ExecutorTest extends \PHPUnit_Framework_TestCase
         $options = array();
         $pluginName = 'DOESNTEXIST';
 
-        $this->mockBuildLogger->logFailure('Plugin does not exist: ' . $pluginName)->shouldBeCalledTimes(1);
+        $this->mockLogger->error('Plugin does not exist: ' . $pluginName)->shouldBeCalledTimes(1);
 
         $this->testedExecutor->executePlugin($pluginName, $options);
     }
@@ -109,8 +109,8 @@ class ExecutorTest extends \PHPUnit_Framework_TestCase
 
         $this->mockFactory->buildPlugin(Argument::any(), Argument::any())->willReturn($mockPlugin->reveal());
 
-        $this->mockBuildLogger->logFailure('Exception: ' . $expectedException->getMessage(), $expectedException)
-                              ->shouldBeCalledTimes(1);
+        $this->mockLogger->error('Exception: ' . $expectedException->getMessage(), array('exception' => $expectedException))
+            ->shouldBeCalledTimes(1);
 
         $this->testedExecutor->executePlugin($pluginName, $options);
     }
@@ -153,4 +153,3 @@ class ExecutorTest extends \PHPUnit_Framework_TestCase
         return $pluginNamespace . $pluginName;
     }
 }
-

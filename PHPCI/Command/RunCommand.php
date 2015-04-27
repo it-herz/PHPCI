@@ -85,11 +85,10 @@ class RunCommand extends Command
 
         $running = $this->validateRunningBuilds();
 
-        $this->logger->pushProcessor(new LoggedBuildContextTidier());
-        $this->logger->addInfo(Lang::get('finding_builds'));
+        $this->logger->info(Lang::get('finding_builds'));
         $store = Factory::getStore('Build');
         $result = $store->getByStatus(0, $this->maxBuilds);
-        $this->logger->addInfo(Lang::get('found_n_builds', count($result['items'])));
+        $this->logger->info(Lang::get('found_n_builds', count($result['items'])));
 
         $builds = 0;
 
@@ -99,7 +98,7 @@ class RunCommand extends Command
 
             // Skip build (for now) if there's already a build running in that project:
             if (!$this->isFromDaemon && in_array($build->getProjectId(), $running)) {
-                $this->logger->addInfo(Lang::get('skipping_build', $build->getId()));
+                $this->logger->info(Lang::get('skipping_build', $build->getId()));
                 $result['items'][] = $build;
 
                 // Re-run build validator:
@@ -112,15 +111,8 @@ class RunCommand extends Command
             try {
                 // Logging relevant to this build should be stored
                 // against the build itself.
-                $buildDbLog = new BuildDBLogHandler($build, Logger::INFO);
-                $this->logger->pushHandler($buildDbLog);
-
                 $builder = new Builder($build, $this->logger);
                 $builder->execute();
-
-                // After execution we no longer want to record the information
-                // back to this specific build so the handler should be removed.
-                $this->logger->popHandler($buildDbLog);
             } catch (\Exception $ex) {
                 $build->setStatus(Build::STATUS_FAILED);
                 $build->setFinished(new \DateTime());
@@ -130,7 +122,7 @@ class RunCommand extends Command
 
         }
 
-        $this->logger->addInfo(Lang::get('finished_processing_builds'));
+        $this->logger->info(Lang::get('finished_processing_builds'));
 
         return $builds;
     }
@@ -162,7 +154,7 @@ class RunCommand extends Command
             $start = $build->getStarted()->getTimestamp();
 
             if (($now - $start) > $timeout) {
-                $this->logger->addInfo(Lang::get('marked_as_failed', $build->getId()));
+                $this->logger->info(Lang::get('marked_as_failed', $build->getId()));
                 $build->setStatus(Build::STATUS_FAILED);
                 $build->setFinished(new \DateTime());
                 $store->save($build);

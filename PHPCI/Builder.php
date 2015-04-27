@@ -9,14 +9,15 @@
 
 namespace PHPCI;
 
+use Monolog\Handler\PsrHandler;
+use Monolog\Logger;
 use PHPCI\Helper\BuildInterpolator;
 use PHPCI\Helper\Lang;
 use PHPCI\Helper\MailerFactory;
-use PHPCI\Logging\BuildLogger;
+use PHPCI\Logging\BuildDBLogHandler;
 use PHPCI\Model\Build;
 use b8\Config;
 use b8\Store\Factory;
-use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use PHPCI\Plugin\Util\Factory as PluginFactory;
@@ -25,7 +26,7 @@ use PHPCI\Plugin\Util\Factory as PluginFactory;
  * PHPCI Build Runner
  * @author   Dan Cryer <dan@block8.co.uk>
  */
-class Builder implements LoggerAwareInterface
+class Builder
 {
     /**
      * @var string
@@ -56,6 +57,11 @@ class Builder implements LoggerAwareInterface
      * @var LoggerInterface
      */
     protected $logger;
+
+    /**
+     * @var BuildDBLogHandler
+     */
+    protected $dbLogger;
 
     /**
      * @var array
@@ -93,11 +99,6 @@ class Builder implements LoggerAwareInterface
     protected $commandExecutor;
 
     /**
-     * @var Logging\BuildLogger
-     */
-    protected $buildLogger;
-
-    /**
      * Set up the builder.
      * @param \PHPCI\Model\Build $build
      * @param LoggerInterface $logger
@@ -107,25 +108,48 @@ class Builder implements LoggerAwareInterface
         $this->build = $build;
         $this->store = Factory::getStore('Build');
 
-        $this->buildLogger = new BuildLogger($logger, $build);
+        $this->logger = $this->buildLogger($build, $logger);
 
         $pluginFactory = $this->buildPluginFactory($build);
         $pluginFactory->addConfigFromFile(PHPCI_DIR . "/pluginconfig.php");
-        $this->pluginExecutor = new Plugin\Util\Executor($pluginFactory, $this->buildLogger);
+        $this->pluginExecutor = new Plugin\Util\Executor($pluginFactory, $this->logger);
 
         $executorClass = 'PHPCI\Helper\UnixCommandExecutor';
         if (IS_WIN) {
             $executorClass = 'PHPCI\Helper\WindowsCommandExecutor';
         }
 
-        $this->commandExecutor = new $executorClass(
-            $this->buildLogger,
-            PHPCI_DIR,
-            $this->quiet,
-            $this->verbose
-        );
+        $this->commandExecutor = new $executorClass($this->logger, PHPCI_DIR);
 
         $this->interpolator = new BuildInterpolator();
+    }
+
+    /**
+     *
+     * @param Build $build
+     * @param LoggerInterface $outerLogger
+     * @return LoggerInterface
+     */
+    private function buildLogger(Build $build, LoggerInterface $outerLogger = null)
+    {
+        $buildId = $build->getId();
+        $logger = new Logger("Build".$buildId);
+
+        $this->dbLogger = new BuildDBLogHandler($build);
+        $logger->pushHandler($this->dbLogger);
+
+        if ($outerLogger) {
+            $logger->pushHandler(new PsrHandler($outerLogger));
+        }
+
+        $logger->pushProcessor(
+            function (array $record) use ($buildId) {
+                $record['context']['buildID'] = $buildId;
+                return $record;
+            }
+        );
+
+        return $logger;
     }
 
     /**
@@ -210,14 +234,14 @@ class Builder implements LoggerAwareInterface
 
             if ($success) {
                 $this->pluginExecutor->executePlugins($this->config, 'success');
-                $this->buildLogger->logSuccess(Lang::get('build_success'));
+                $this->logSuccess(Lang::get('build_success'));
             } else {
                 $this->pluginExecutor->executePlugins($this->config, 'failure');
-                $this->buildLogger->logFailure(Lang::get('build_failed'));
+                $this->logFailure(Lang::get('build_failed'));
             }
         } catch (\Exception $ex) {
             $this->build->setStatus(Build::STATUS_FAILED);
-            $this->buildLogger->logFailure(Lang::get('exception') . $ex->getMessage());
+            $this->logFailure(Lang::get('exception'), $ex);
         }
 
 
@@ -226,7 +250,7 @@ class Builder implements LoggerAwareInterface
         $this->build->setFinished(new \DateTime());
 
         // Clean up:
-        $this->buildLogger->log(Lang::get('removing_build'));
+        $this->logger->info(Lang::get('removing_build'));
         $this->build->removeBuildDirectory();
 
         $this->store->save($this->build);
@@ -302,8 +326,10 @@ class Builder implements LoggerAwareInterface
         }
 
         // Does the project's phpci.yml request verbose mode?
-        if (!isset($this->config['build_settings']['verbose']) || !$this->config['build_settings']['verbose']) {
-            $this->verbose = false;
+        if (empty($this->config['build_settings']['verbose'])) {
+            $this->dbLogger->setLevel(LogLevel::NOTICE);
+        } else {
+            $this->dbLogger->setLevel(LogLevel::INFO);
         }
 
         // Does the project have any paths it wants plugins to ignore?
@@ -311,19 +337,8 @@ class Builder implements LoggerAwareInterface
             $this->ignore = $this->config['build_settings']['ignore'];
         }
 
-        $this->buildLogger->logSuccess(Lang::get('working_copy_created', $this->buildPath));
+        $this->logger->notice(Lang::get('working_copy_created', $this->buildPath));
         return true;
-    }
-
-    /**
-     * Sets a logger instance on the object
-     *
-     * @param LoggerInterface $logger
-     * @return null
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->buildLogger->setLogger($logger);
     }
 
     /**
@@ -334,27 +349,30 @@ class Builder implements LoggerAwareInterface
      */
     public function log($message, $level = LogLevel::INFO, $context = array())
     {
-        $this->buildLogger->log($message, $level, $context);
+        $this->logger->log($level, $message, $context);
     }
 
-   /**
+    /**
      * Add a success-coloured message to the log.
+     *
      * @param string
      */
     public function logSuccess($message)
     {
-        $this->buildLogger->logSuccess($message);
+        $this->logger->notice($message);
     }
 
     /**
      * Add a failure-coloured message to the log.
      * @param string $message
-     * @param \Exception $exception The exception that caused the error.
+     * @param Exception $exception The exception that caused the error.
      */
     public function logFailure($message, \Exception $exception = null)
     {
-        $this->buildLogger->logFailure($message, $exception);
+        $context = $exception ? array('exception' => $exception) : array();
+        $this->logger->error($message, $context);
     }
+
     /**
      * Returns a configured instance of the plugin factory.
      *

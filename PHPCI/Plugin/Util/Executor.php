@@ -3,7 +3,7 @@
 namespace PHPCI\Plugin\Util;
 
 use PHPCI\Helper\Lang;
-use \PHPCI\Logging\BuildLogger;
+use Psr\Log\LoggerInterface;
 
 /**
  * Plugin Executor - Runs the configured plugins for a given build stage.
@@ -12,7 +12,7 @@ use \PHPCI\Logging\BuildLogger;
 class Executor
 {
     /**
-     * @var BuildLogger
+     * @var LoggerInterface
      */
     protected $logger;
 
@@ -23,9 +23,9 @@ class Executor
 
     /**
      * @param Factory $pluginFactory
-     * @param BuildLogger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(Factory $pluginFactory, BuildLogger $logger)
+    public function __construct(Factory $pluginFactory, LoggerInterface $logger)
     {
         $this->pluginFactory = $pluginFactory;
         $this->logger = $logger;
@@ -46,12 +46,12 @@ class Executor
         }
 
         foreach ($config[$stage] as $plugin => $options) {
-            $this->logger->log(Lang::get('running_plugin', $plugin));
+            $this->logger->notice(Lang::get('running_plugin', $plugin));
 
             // Try and execute it:
             if ($this->executePlugin($plugin, $options)) {
                 // Execution was successful:
-                $this->logger->logSuccess(Lang::get('plugin_success'));
+                $this->logger->notice(Lang::get('plugin_success'));
             } elseif ($stage == 'setup') {
                 // If we're in the "setup" stage, execution should not continue after
                 // a plugin has failed:
@@ -63,7 +63,7 @@ class Executor
                     $success = false;
                 }
 
-                $this->logger->logFailure(Lang::get('plugin_failed'));
+                $this->logger->error(Lang::get('plugin_failed'));
             }
         }
 
@@ -87,7 +87,7 @@ class Executor
         }
 
         if (!class_exists($class)) {
-            $this->logger->logFailure(Lang::get('plugin_missing', $plugin));
+            $this->logger->error(Lang::get('plugin_missing', $plugin));
             return false;
         }
 
@@ -101,7 +101,7 @@ class Executor
                 $rtn = false;
             }
         } catch (\Exception $ex) {
-            $this->logger->logFailure(Lang::get('exception') . $ex->getMessage(), $ex);
+            $this->logger->error(Lang::get('exception') . $ex->getMessage(), array('exception' => $ex));
             $rtn = false;
         }
 

@@ -10,7 +10,7 @@
 namespace PHPCI\Helper;
 
 use Exception;
-use PHPCI\Logging\BuildLogger;
+use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 
 /**
@@ -20,19 +20,9 @@ use Psr\Log\LogLevel;
 abstract class BaseCommandExecutor implements CommandExecutor
 {
     /**
-     * @var BuildLogger
+     * @var LoggerInterface
      */
     protected $logger;
-
-    /**
-     * @var bool
-     */
-    protected $quiet;
-
-    /**
-     * @var bool
-     */
-    protected $verbose;
 
     protected $lastOutput;
     protected $lastError;
@@ -52,16 +42,12 @@ abstract class BaseCommandExecutor implements CommandExecutor
     protected $buildPath;
 
     /**
-     * @param BuildLogger $logger
-     * @param string      $rootDir
-     * @param bool        $quiet
-     * @param bool        $verbose
+     * @param LoggerInterface $logger
+     * @param string          $rootDir
      */
-    public function __construct(BuildLogger $logger, $rootDir, &$quiet = false, &$verbose = false)
+    public function __construct(LoggerInterface $logger, $rootDir)
     {
         $this->logger = $logger;
-        $this->quiet = $quiet;
-        $this->verbose = $verbose;
         $this->lastOutput = array();
         $this->rootDir = $rootDir;
     }
@@ -77,9 +63,7 @@ abstract class BaseCommandExecutor implements CommandExecutor
 
         $command = call_user_func_array('sprintf', $args);
 
-        if ($this->quiet) {
-            $this->logger->log('Executing: ' . $command);
-        }
+        $this->logger->debug('Executing: ' . $command);
 
         $status = 0;
         $descriptorSpec = array(
@@ -102,27 +86,23 @@ abstract class BaseCommandExecutor implements CommandExecutor
             fclose($pipes[2]);
 
             $status = proc_close($process);
+
+            $this->logger->debug(sprintf('Command "%s" exited with status %d', $command, $status));
         }
 
         $this->lastOutput = array_filter(explode(PHP_EOL, $this->lastOutput));
 
-        $shouldOutput = ($this->logExecOutput && ($this->verbose || $status != 0));
+        $success = ($status == 0);
 
-        if ($shouldOutput && !empty($this->lastOutput)) {
-            $this->logger->log($this->lastOutput);
+        if (!empty($this->lastOutput)) {
+            $this->logger->info($this->getLastOutput());
         }
 
         if (!empty($this->lastError)) {
-            $this->logger->log("\033[0;31m" . $this->lastError . "\033[0m", LogLevel::ERROR);
+            $this->logger->log($success ? LogLevel::WARNING : LogLevel::ERROR, $this->lastError);
         }
 
-        $rtn = false;
-
-        if ($status == 0) {
-            $rtn = true;
-        }
-
-        return $rtn;
+        return $success;
     }
 
     /**
@@ -156,26 +136,26 @@ abstract class BaseCommandExecutor implements CommandExecutor
         }
 
         foreach ($binary as $bin) {
-            $this->logger->log(Lang::get('looking_for_binary', $bin), LogLevel::DEBUG);
+            $this->logger->debug(Lang::get('looking_for_binary', $bin));
 
             if (is_dir($composerBin) && is_file($composerBin.'/'.$bin)) {
-                $this->logger->log(Lang::get('found_in_path', $composerBin, $bin), LogLevel::DEBUG);
+                $this->logger->debug(Lang::get('found_in_path', $composerBin, $bin));
                 return $composerBin . '/' . $bin;
             }
 
             if (is_file($this->rootDir . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'root', $bin), LogLevel::DEBUG);
+                $this->logger->debug(Lang::get('found_in_path', 'root', $bin));
                 return $this->rootDir . $bin;
             }
 
             if (is_file($this->rootDir . 'vendor/bin/' . $bin)) {
-                $this->logger->log(Lang::get('found_in_path', 'vendor/bin', $bin), LogLevel::DEBUG);
+                $this->logger->debug(Lang::get('found_in_path', 'vendor/bin', $bin));
                 return $this->rootDir . 'vendor/bin/' . $bin;
             }
 
             $findCmdResult = $this->findGlobalBinary($bin);
             if (is_file($findCmdResult)) {
-                $this->logger->log(Lang::get('found_in_path', '', $bin), LogLevel::DEBUG);
+                $this->logger->debug(Lang::get('found_in_path', '', $bin));
                 return $findCmdResult;
             }
         }
