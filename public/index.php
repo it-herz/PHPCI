@@ -7,6 +7,14 @@
 * @link         https://www.phptesting.org/
 */
 
+// Let the cli-server serve non-PHP, static files.
+if (php_sapi_name() === 'cli-server' &&
+    is_file($_SERVER["SCRIPT_FILENAME"]) &&
+    pathinfo($_SERVER["SCRIPT_FILENAME"], PATHINFO_EXTENSION) !== 'php'
+) {
+    return false;
+}
+
 session_set_cookie_params(43200); // Set session cookie to last 12 hours.
 session_start();
 
