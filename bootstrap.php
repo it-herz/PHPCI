@@ -8,6 +8,7 @@
 */
 
 // Let PHP take a guess as to the default timezone, if the user hasn't set one:
+use PHPCI\Application;
 use PHPCI\Logging\LoggerConfig;
 
 $timezone = ini_get('date.timezone');
@@ -59,6 +60,11 @@ $config = new b8\Config($conf);
 if (file_exists($configFile)) {
     $config->loadYaml($configFile);
 }
+
+// Update the front-end base URL using HTTP headers
+$config->setArray(
+    array('phpci' => array('url' => Application::findBaseUrl($_SERVER, $config->get('phpci.url'))))
+);
 
 /**
  * Allow to modify PHPCI configuration without modify versioned code.

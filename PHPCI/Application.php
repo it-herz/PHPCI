@@ -168,4 +168,39 @@ class Application extends b8\Application
 
         return false;
     }
+
+    /**
+     *
+     * @param array $request
+     * @param string $defaultUrl
+     * @return string
+     */
+    public static function findBaseUrl(array $server, $defaultUrl = null)
+    {
+        $parts = array_replace(array('scheme' => 'http', 'path' => ''), parse_url($defaultUrl));
+        $scheme = $parts['scheme'];
+        $host = $parts['host'];
+        $path = $parts['path'];
+
+        if (isset($server['HTTP_X_FORWARDED_HOST'])) {
+            $host = $server['HTTP_X_FORWARDED_HOST'];
+        } elseif (isset($server['HTTP_HOST'])) {
+            $host = $server['HTTP_HOST'];
+        }
+
+        if (isset($server['HTTPS']) && $server['HTTPS'] !== 'off') {
+            $scheme = 'https';
+        } else {
+            $scheme = 'http';
+        }
+
+        if (isset($server['SCRIPT_NAME'])) {
+            $slashPos = strrpos($server['SCRIPT_NAME'], '/');
+            if ($slashPos) {
+                $path = substr($server['SCRIPT_NAME'], 0, $slashPos);
+            }
+        }
+
+        return sprintf("%s://%s%s", $scheme, $host, rtrim($path, '/'));
+    }
 }
