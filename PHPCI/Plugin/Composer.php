@@ -27,6 +27,7 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
     protected $preferDist;
     protected $phpci;
     protected $build;
+    protected $nodev;
 
     /**
      * Check if this plugin can be executed.
@@ -37,7 +38,7 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
      */
     public static function canExecute($stage, Builder $builder, Build $build)
     {
-        $path = $builder->buildPath . '/composer.json';
+        $path = $builder->buildPath . DIRECTORY_SEPARATOR . 'composer.json';
 
         if (file_exists($path) && $stage == 'setup') {
             return true;
@@ -54,15 +55,16 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
      */
     public function __construct(Builder $phpci, Build $build, array $options = array())
     {
-        $path = $phpci->buildPath;
-        $this->phpci = $phpci;
-        $this->build = $build;
-        $this->directory = $path;
-        $this->action = 'install';
+        $path             = $phpci->buildPath;
+        $this->phpci      = $phpci;
+        $this->build      = $build;
+        $this->directory  = $path;
+        $this->action     = 'install';
         $this->preferDist = false;
+        $this->nodev      = false;
 
         if (array_key_exists('directory', $options)) {
-            $this->directory = $path . '/' . $options['directory'];
+            $this->directory = $path . DIRECTORY_SEPARATOR . $options['directory'];
         }
 
         if (array_key_exists('action', $options)) {
@@ -72,6 +74,10 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
         if (array_key_exists('prefer_dist', $options)) {
             $this->preferDist = (bool)$options['prefer_dist'];
         }
+
+        if (array_key_exists('no_dev', $options)) {
+            $this->nodev = (bool)$options['no_dev'];
+        }
     }
 
     /**
@@ -80,11 +86,6 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
     public function execute()
     {
         $composerLocation = $this->phpci->findBinary(array('composer', 'composer.phar'));
-
-        if (!$composerLocation) {
-            $this->phpci->logFailure(Lang::get('could_not_find', 'composer'));
-            return false;
-        }
 
         $cmd = '';
 
@@ -100,6 +101,11 @@ class Composer implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
         } else {
             $this->phpci->log('Using --prefer-source flag');
             $cmd .= '--prefer-source';
+        }
+
+        if ($this->nodev) {
+            $this->phpci->log('Using --no-dev flag');
+            $cmd .= ' --no-dev';
         }
 
         $cmd .= ' --working-dir="%s" %s';

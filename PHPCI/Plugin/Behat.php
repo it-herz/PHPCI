@@ -12,6 +12,7 @@ namespace PHPCI\Plugin;
 use PHPCI\Builder;
 use PHPCI\Helper\Lang;
 use PHPCI\Model\Build;
+use PHPCI\Model\BuildError;
 
 /**
  * Behat BDD Plugin
@@ -98,7 +99,6 @@ class Behat implements \PHPCI\Plugin
 
         $lines = explode(PHP_EOL, $parts[1]);
 
-        $errorCount = 0;
         $storeFailures = false;
         $data = array();
 
@@ -120,7 +120,14 @@ class Behat implements \PHPCI\Plugin
                     'line' => $lineParts[1]
                 );
 
-                $this->build->reportError($this->phpci, $lineParts[0], $lineParts[1], 'Behat scenario failed.');
+                $this->build->reportError(
+                    $this->phpci,
+                    'behat',
+                    'Behat scenario failed.',
+                    BuildError::SEVERITY_HIGH,
+                    $lineParts[0],
+                    $lineParts[1]
+                );
             }
         }
 

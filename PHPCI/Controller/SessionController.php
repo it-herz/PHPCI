@@ -52,29 +52,38 @@ class SessionController extends \PHPCI\Controller
 
             $email = $this->getParam('email');
             $password = $this->getParam('password', '');
-            $isLoginFailure = true;
 
-            $user = $this->userStore->getByEmail($email);
-
-            $providers = $this->authentication->getLoginPasswordProviders();
-
-            if (null !== $user) {
-                // Delegate password verification to the user provider, if found
-                $key = $user->getProviderKey();
-                $isLoginFailure = !isset($providers[$key]) || !$providers[$key]->verifyPassword($user, $password);
+            $token = $this->getParam('token');
+            if (!isset($token, $_SESSION['login_token']) || $token !== $_SESSION['login_token']) {
+                $isLoginFailure = true;
             } else {
-                // Ask each providers to provision the user
-                foreach ($providers as $provider) {
-                    $user = $provider->provisionUser($email);
-                    if ($user !== null && $provider->verifyPassword($user, $password)) {
-                        $this->userStore->save($user);
-                        $isLoginFailure = false;
-                        break;
-                    }
-                }
+                unset($_SESSION['login_token']);
+
+                $isLoginFailure = true;
+
+                $user = $this->userStore->getByEmail($email);
+
+                $providers = $this->authentication->getLoginPasswordProviders();
+
+                if (null !== $user) {
+                    // Delegate password verification to the user provider, if found
+                    $key = $user->getProviderKey();
+                    $isLoginFailure = !isset($providers[$key]) || !$providers[$key]->verifyPassword($user, $password);
+                } else {
+                    // Ask each providers to provision the user
+                    foreach ($providers as $provider) {
+                       $user = $provider->provisionUser($email);
+                       if ($user !== null && $provider->verifyPassword($user, $password)) {
+                          $this->userStore->save($user);
+                          $isLoginFailure = false;
+                          break;
+                       }
+                   }
+               }
             }
 
             if (!$isLoginFailure) {
+                session_regenerate_id(true);
                 $_SESSION['phpci_user_id'] = $user->getId();
                 $response = new b8\Http\Response\RedirectResponse();
                 $response->setHeader('Location', $this->getLoginRedirect());
@@ -104,6 +113,12 @@ class SessionController extends \PHPCI\Controller
         $pwd->setValue(Lang::get('log_in'));
         $pwd->setClass('btn-success');
         $form->addField($pwd);
+
+        $tokenValue = $this->generateToken();
+        $_SESSION['login_token'] = $tokenValue;
+        $token = new b8\Form\Element\Hidden('token');
+        $token->setValue($tokenValue);
+        $form->addField($token);
 
         $this->view->form = $form->render();
         $this->view->failed = $isLoginFailure;
@@ -206,5 +221,21 @@ class SessionController extends \PHPCI\Controller
         }
 
         return $rtn;
+    }
+
+    /** Generate a random token.
+     *
+     * @return string
+     */
+    protected function generateToken()
+    {
+        if (function_exists('openssl_random_pseudo_bytes')) {
+            return bin2hex(openssl_random_pseudo_bytes(16));
+        }
+
+        return sprintf("%04x", mt_rand(0, 0xFFFF))
+            . sprintf("%04x", mt_rand(0, 0xFFFF))
+            . sprintf("%04x", mt_rand(0, 0xFFFF))
+            . sprintf("%04x", mt_rand(0, 0xFFFF));
     }
 }

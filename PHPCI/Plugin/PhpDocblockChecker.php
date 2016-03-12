@@ -104,11 +104,6 @@ class PhpDocblockChecker implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
         // Check that the binary exists:
         $checker = $this->phpci->findBinary('phpdoccheck');
 
-        if (!$checker) {
-            $this->phpci->logFailure(PHPCI\Helper\Lang::get('could_not_find', 'phpdoccheck'));
-            return false;
-        }
-
         // Build ignore string:
         $ignore = '';
         if (count($this->ignore)) {
@@ -148,7 +143,6 @@ class PhpDocblockChecker implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
         $success = true;
 
         $this->build->storeMeta('phpdoccheck-warnings', $errors);
-        $this->build->storeMeta('phpdoccheck-data', $output);
         $this->reportErrors($output);
 
         if ($this->allowed_warnings != -1 && $errors > $this->allowed_warnings) {
@@ -165,13 +159,22 @@ class PhpDocblockChecker implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
     protected function reportErrors($output)
     {
         foreach ($output as $error) {
-            $message = 'Class ' . $error['class'] . ' does not have a Docblock comment.';
+            $message = 'Class ' . $error['class'] . ' is missing a docblock.';
+            $severity = PHPCI\Model\BuildError::SEVERITY_LOW;
 
             if ($error['type'] == 'method') {
-                $message = 'Method ' . $error['class'] . '::' . $error['method'] . ' does not have a Docblock comment.';
+                $message = $error['class'] . '::' . $error['method'] . ' is missing a docblock.';
+                $severity = PHPCI\Model\BuildError::SEVERITY_NORMAL;
             }
 
-            $this->build->reportError($this->phpci, $error['file'], $error['line'], $message);
+            $this->build->reportError(
+                $this->phpci,
+                'php_docblock_checker',
+                $message,
+                $severity,
+                $error['file'],
+                $error['line']
+            );
         }
     }
 }

@@ -132,8 +132,9 @@ class XMPP implements \PHPCI\Plugin
      */
     public function findConfigFile()
     {
-        if (file_exists('.sendxmpprc')) {
-            if (md5(file_get_contents('.sendxmpprc')) !== md5($this->getConfigFormat())) {
+        if (file_exists($this->phpci->buildPath . DIRECTORY_SEPARATOR . '.sendxmpprc')) {
+            if (md5(file_get_contents($this->phpci->buildPath . DIRECTORY_SEPARATOR . '.sendxmpprc'))
+                !== md5($this->getConfigFormat())) {
                 return null;
             }
 
@@ -148,12 +149,7 @@ class XMPP implements \PHPCI\Plugin
     */
     public function execute()
     {
-        $sendxmpp = $this->phpci->findBinary('/usr/bin/sendxmpp');
-
-        if (!$sendxmpp) {
-            $this->phpci->logFailure('Could not find sendxmpp.');
-            return false;
-        }
+        $sendxmpp = $this->phpci->findBinary('sendxmpp');
 
         /*
          * Without recipients we can't send notification
@@ -165,9 +161,10 @@ class XMPP implements \PHPCI\Plugin
         /*
          * Try to build conf file
          */
+        $config_file = $this->phpci->buildPath . DIRECTORY_SEPARATOR . '.sendxmpprc';
         if (is_null($this->findConfigFile())) {
-            file_put_contents('.sendxmpprc', $this->getConfigFormat());
-            chmod('.sendxmpprc', 0600);
+            file_put_contents($config_file, $this->getConfigFormat());
+            chmod($config_file, 0600);
         }
 
         /*
@@ -178,7 +175,7 @@ class XMPP implements \PHPCI\Plugin
             $tls = ' -t';
         }
 
-        $message_file = uniqid('xmppmessage');
+        $message_file = $this->phpci->buildPath . DIRECTORY_SEPARATOR . uniqid('xmppmessage');
         if ($this->buildMessage($message_file) === false) {
             return false;
         }
@@ -186,10 +183,10 @@ class XMPP implements \PHPCI\Plugin
         /*
          * Send XMPP notification for all recipients
          */
-        $cmd = $sendxmpp . "%s -f .sendxmpprc -m %s %s";
+        $cmd = $sendxmpp . "%s -f %s -m %s %s";
         $recipients = implode(' ', $this->recipients);
 
-        $success = $this->phpci->executeCommand($cmd, $tls, $message_file, $recipients);
+        $success = $this->phpci->executeCommand($cmd, $tls, $config_file, $message_file, $recipients);
 
         print $this->phpci->getLastOutput();
 

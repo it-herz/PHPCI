@@ -1,13 +1,14 @@
 <?php
+
 /**
  * PHPCI - Continuous Integration for PHP
  *
  * @copyright    Copyright 2014, Block 8 Limited.
- * @license        https://github.com/Block8/PHPCI/blob/master/LICENSE.md
- * @link            http://www.phptesting.org/
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
  */
 
-namespace PHPCI\Service\Tests;
+namespace Tests\PHPCI\Service;
 
 use PHPCI\Model\Build;
 use PHPCI\Model\Project;
@@ -56,7 +57,7 @@ class BuildServiceTest extends \PHPUnit_Framework_TestCase
         $this->assertNull($returnValue->getStarted());
         $this->assertNull($returnValue->getFinished());
         $this->assertNull($returnValue->getLog());
-        $this->assertEmpty($returnValue->getCommitMessage());
+        $this->assertEquals(\PHPCI\Helper\Lang::get('manual_build'), $returnValue->getCommitMessage());
         $this->assertNull($returnValue->getCommitterEmail());
         $this->assertNull($returnValue->getExtra());
         $this->assertEquals('master', $returnValue->getBranch());
@@ -102,7 +103,7 @@ class BuildServiceTest extends \PHPUnit_Framework_TestCase
     {
         $build = new Build();
         $build->setId(1);
-        $build->setProjectId(101);
+        $build->setProject(101);
         $build->setCommitId('abcde');
         $build->setStatus(Build::STATUS_FAILED);
         $build->setLog('Test');

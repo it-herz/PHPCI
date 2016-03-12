@@ -13,6 +13,7 @@ use b8;
 use b8\Exception\HttpException\NotFoundException;
 use b8\Http\Response\JsonResponse;
 use PHPCI\BuildFactory;
+use PHPCI\Helper\AnsiConverter;
 use PHPCI\Helper\Lang;
 use PHPCI\Model\Build;
 use PHPCI\Model\Project;
@@ -62,24 +63,42 @@ class BuildController extends \PHPCI\Controller
 
         $this->view->plugins  = $this->getUiPlugins();
         $this->view->build    = $build;
-        $this->view->data     = json_encode($this->getBuildData($build));
+        $this->view->data     = $this->getBuildData($build);
 
         $this->layout->title = Lang::get('build_n', $buildId);
         $this->layout->subtitle = $build->getProjectTitle();
 
-        $nav = array(
-            'title' => Lang::get('build_n', $buildId),
-            'icon' => 'cog',
-            'links' => array(
-                'build/rebuild/' . $build->getId() => Lang::get('rebuild_now'),
-            ),
-        );
+        switch ($build->getStatus()) {
+            case 0:
+                $this->layout->skin = 'blue';
+                break;
 
-        if ($this->currentUserIsAdmin()) {
-            $nav['links']['build/delete/' . $build->getId()] = Lang::get('delete_build');
+            case 1:
+                $this->layout->skin = 'yellow';
+                break;
+
+            case 2:
+                $this->layout->skin = 'green';
+                break;
+
+            case 3:
+                $this->layout->skin = 'red';
+                break;
         }
 
-        $this->layout->nav = $nav;
+        $rebuild = Lang::get('rebuild_now');
+        $rebuildLink = PHPCI_URL . 'build/rebuild/' . $build->getId();
+
+        $delete = Lang::get('delete_build');
+        $deleteLink = PHPCI_URL . 'build/delete/' . $build->getId();
+
+        $actions = "<a class=\"btn btn-default\" href=\"{$rebuildLink}\">{$rebuild}</a> ";
+
+        if ($this->currentUserIsAdmin()) {
+            $actions .= " <a class=\"btn btn-danger\" href=\"{$deleteLink}\">{$delete}</a>";
+        }
+
+        $this->layout->actions = $actions;
     }
 
     /**
@@ -143,7 +162,7 @@ class BuildController extends \PHPCI\Controller
     /**
     * Get build data from database and json encode it:
     */
-    protected function getBuildData($build)
+    protected function getBuildData(Build $build)
     {
         $data               = array();
         $data['status']     = (int)$build->getStatus();
@@ -151,6 +170,19 @@ class BuildController extends \PHPCI\Controller
         $data['created']    = !is_null($build->getCreated()) ? $build->getCreated()->format('Y-m-d H:i:s') : null;
         $data['started']    = !is_null($build->getStarted()) ? $build->getStarted()->format('Y-m-d H:i:s') : null;
         $data['finished']   = !is_null($build->getFinished()) ? $build->getFinished()->format('Y-m-d H:i:s') : null;
+        $data['duration']   = $build->getDuration();
+
+        /** @var \PHPCI\Store\BuildErrorStore $errorStore */
+        $errorStore = b8\Store\Factory::getStore('BuildError');
+        $errors = $errorStore->getErrorsForBuild($build->getId(), $this->getParam('since', null));
+
+        $errorView = new b8\View('Build/errors');
+        $errorView->build = $build;
+        $errorView->errors = $errors;
+
+        $data['errors']     = count($errors);
+        $data['error_html'] = $errorView->render();
+        $data['since'] = (new \DateTime())->format('Y-m-d H:i:s');
 
         return $data;
     }
@@ -198,11 +230,7 @@ class BuildController extends \PHPCI\Controller
     */
     protected function cleanLog($log)
     {
-        $log = str_replace('[0;32m', '<span style="color: green">', $log);
-        $log = str_replace('[0;31m', '<span style="color: red">', $log);
-        $log = str_replace('[0m', '</span>', $log);
-
-        return $log;
+        return AnsiConverter::convert($log);
     }
 
     /**

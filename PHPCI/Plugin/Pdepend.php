@@ -73,21 +73,19 @@ class Pdepend implements \PHPCI\Plugin
      */
     public function execute()
     {
+        if (!file_exists($this->location)) {
+            mkdir($this->location);
+        }
         if (!is_writable($this->location)) {
-            throw new \Exception(sprintf('The location %s is not writable.', $this->location));
+            throw new \Exception(sprintf('The location %s is not writable or does not exist.', $this->location));
         }
 
         $pdepend = $this->phpci->findBinary('pdepend');
 
-        if (!$pdepend) {
-            $this->phpci->logFailure(Lang::get('could_not_find', 'pdepend'));
-            return false;
-        }
-
         $cmd = $pdepend . ' --summary-xml="%s" --jdepend-chart="%s" --overview-pyramid="%s" %s "%s"';
 
         $this->removeBuildArtifacts();
-       
+
         // If we need to ignore directories
         if (count($this->phpci->ignore)) {
             $ignore = ' --ignore=' . implode(',', $this->phpci->ignore);

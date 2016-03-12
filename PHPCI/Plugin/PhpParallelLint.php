@@ -55,10 +55,10 @@ class PhpParallelLint implements \PHPCI\Plugin
      */
     public function __construct(Builder $phpci, Build $build, array $options = array())
     {
-        $this->phpci        = $phpci;
-        $this->build        = $build;
-        $this->directory    = $phpci->buildPath;
-        $this->ignore       = $this->phpci->ignore;
+        $this->phpci = $phpci;
+        $this->build = $build;
+        $this->directory = $phpci->buildPath;
+        $this->ignore = $this->phpci->ignore;
 
         if (isset($options['directory'])) {
             $this->directory = $phpci->buildPath.$options['directory'];
@@ -77,11 +77,6 @@ class PhpParallelLint implements \PHPCI\Plugin
         list($ignore) = $this->getFlags();
 
         $phplint = $this->phpci->findBinary('parallel-lint');
-
-        if (!$phplint) {
-            $this->phpci->logFailure(Lang::get('could_not_find', 'parallel-lint'));
-            return false;
-        }
 
         $cmd = $phplint . ' %s "%s"';
         $success = $this->phpci->executeCommand(
