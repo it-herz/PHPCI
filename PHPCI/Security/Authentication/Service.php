@@ -34,7 +34,7 @@ class Service
         if (self::$instance === null) {
             $config = Config::getInstance()->get(
                 'phpci.security.authentication',
-                array('internal' => 'internal')
+                array('internal' => 'Internal')
             );
 
             $providers = [];

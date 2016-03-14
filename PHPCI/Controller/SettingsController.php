@@ -474,7 +474,7 @@ class SettingsController extends Controller
         $field = new Form\Element\Checkbox('disable_authentication');
         $field->setCheckedValue(1);
         $field->setRequired(false);
-        $field->setLabel('Disable Authentication?');
+        $field->setLabel(Lang::get('disable_authentication_ask'));
         $field->setContainerClass('form-group');
         $field->setValue(0);
 
@@ -485,7 +485,7 @@ class SettingsController extends Controller
         $form->addField($field);
 
         $field = new Form\Element\Submit();
-        $field->setValue('Save &raquo;');
+        $field->setValue(Lang::get('save'));
         $field->setClass('btn btn-success pull-right');
         $form->addField($field);
 

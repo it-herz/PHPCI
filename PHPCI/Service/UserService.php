@@ -63,16 +63,15 @@ class UserService
      * @return \PHPCI\Model\User
      */
 
-    public function createUserWithProvider($name, $emailAddress, $id, $password, $providerKey, $providerData, $isAdmin = false)
+    public function createUserWithProvider($name, $emailAddress, $password, $providerKey, $providerData, $isAdmin = false)
     {
         $user = new User();
 	$user->setName($name);
 	$user->setEmail($emailAddress);
-	$user->setHash("");
+	$user->setHash(password_hash($password, PASSWORD_DEFAULT));
 	$user->setProviderKey($providerKey);
 	$user->setProviderData($providerData);
 	$user->setIsAdmin(($isAdmin ? 1 : 0));
-
         return $this->store->save($user);
     }
 

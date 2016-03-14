@@ -261,6 +261,7 @@ class Builder implements LoggerAwareInterface
     /**
      * Returns the output from the last command run.
      */
+    public function getLastError() { return $this->commandExecutor->getLastError();}
     public function getLastOutput()
     {
         return $this->commandExecutor->getLastOutput();

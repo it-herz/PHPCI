@@ -9,7 +9,7 @@
 
 $strings = array(
     'language_name' => 'Pусский',
-    'language' => 'язык',
+    'language' => 'Язык',
 
     // Log in:
     'log_in_to_phpci' => 'Войти в PHPCI',
@@ -38,7 +38,7 @@ PHPCI',
     'reset_email_title' => 'Сброс пароля PHPCI для %s',
     'reset_invalid' => 'Некорректный запрос на сброс пароля.',
     'email_address' => 'Email',
-    'login' => 'Логин / Email',
+    'login' => 'Имя для входа / Email',
     'password' => 'Пароль',
     'log_in' => 'Войти',
 
@@ -152,7 +152,6 @@ PHPCI',
     'build_n' => 'Сборка %d',
     'rebuild_now' => 'Пересобрать сейчас',
 
-
     'committed_by_x' => 'Отправил %s',
     'commit_id_x' => 'Коммит: %s',
 
@@ -164,7 +163,7 @@ PHPCI',
     'noncomment_lines' => 'Строк некомментариев',
     'logical_lines' => 'Строк логики',
     'lines_of_code' => 'Строк кода',
-    'build_log' => 'Лог сборки',
+    'build_log' => 'Журнал сборки',
     'quality_trend' => 'Тенденция качества',
     'codeception_errors' => 'Ошибки Codeception',
     'phpmd_warnings' => 'Предупреждения PHPMD',
@@ -205,8 +204,8 @@ PHPCI',
     'build_created' => 'Сборка создана',
     'build_started' => 'Сборка запущена',
     'build_finished' => 'Сборка окончена',
-    'test_message' => 'Message',
-    'test_no_message' => 'No message',
+    'test_message' => 'Сообщение',
+    'test_no_message' => 'Нет сообщения',
     'test_success' => 'Успешно: %d',
     'test_fail' => 'Провалено: %d',
     'test_skipped' => 'Пропущено: %d',
@@ -268,8 +267,8 @@ PHPCI',
     '5_mins' => '5 минут',
     '15_mins' => '15 минут',
     '30_mins' => '30 минут',
-    '1_hour' => '1 часа',
-    '3_hours' => '3 часов',
+    '1_hour' => '1 час',
+    '3_hours' => '3 часа',
 
     // Plugins
     'cannot_update_composer' => 'PHPCI не может обновить composer.json, если он недоступен на запись.',
@@ -293,10 +292,10 @@ PHPCI',
     'duration' => 'Продолжительность',
     'plugin' => 'Плагин',
     'stage_setup' => 'Установка',
-    'stage_test' => 'тестирование',
-    'stage_complete' => 'Завершение',
-    'stage_success' => 'Успешное завершение',
-    'stage_failure' => 'Провал',
+    'stage_test' => 'Тестирование',
+    'stage_complete' => 'Завершено',
+    'stage_success' => 'Успешно',
+    'stage_failure' => 'Провалено',
     'stage_broken'  => 'Поломка',
     'stage_fixed' => 'Исправление',
 
@@ -320,13 +319,9 @@ PHPCI',
                                 Пожалуйста, просмотрите возникшие ошибки перед тем, как продолжить.',
     'must_be_valid_email' => 'Должен быть корректным email-адресом.',
     'must_be_valid_url' => 'Должен быть корректным URL-адресом.',
-    'enter_id' => 'Имя для входа: ',
-    'enter_providerkey' => 'Введите ключ провайдера: ',
-    'enter_providerdata' => 'Введите данные для провайдера: ',
-    'enter_name' => 'Полное имя: ',
-    'enter_email' => 'Адрес электронной почты: ',
-    'enter_password' => 'Пароль: ',
-    'enter_isadmin' => 'Является администратором (0/1): ',
+    'enter_name' => 'Имя администратора: ',
+    'enter_email' => 'Email администратора: ',
+    'enter_password' => 'Пароль администратора: ',
     'enter_phpci_url' => 'URL-адрес вашего PHPCI (например: "http://phpci.local"): ',
 
     'enter_db_host' => 'Пожалуйста, введите хост MySQL [localhost]: ',
@@ -356,11 +351,8 @@ PHPCI',
     'finished_processing_builds' => 'Процесс сборки завершен.',
 
     // Create Admin
-    'create_admin_user' => 'Добавить учётную запись администратора',
+    'create_admin_user' => 'Добавить аккаунт администратора',
     'incorrect_format' => 'Неверный формат',
-
-    // Register User
-    'register_user' => 'Создать учётную запись пользователя',
 
     // Create Build Command
     'create_build_project' => 'Создать сборку проекта',
@@ -415,5 +407,35 @@ PHPCI',
     'build_file_missing' => 'Указанного файла сборки не существует.',
     'property_file_missing' => 'Указанного файла сборки не существует.',
     'could_not_process_report' => 'Невозможно обработать отчет этой утилиты.',
-    'shell_not_enabled' => 'Плагин shell не включен. Пожалуйста, включите его в файле config.yml.'
+    'shell_not_enabled' => 'Плагин shell не включен. Пожалуйста, включите его в файле config.yml.',
+
+    'errors' => 'Ошибки',
+    'information' => 'Информация',
+
+    'critical' => 'Критический',
+    'high' => 'Высокий',
+    'normal' => 'Обычный',
+    'low' => 'Низкий',
+
+    'php_mess_detector' => 'PHP Mess Detector',
+    'php_code_sniffer' => 'PHP Code Sniffer',
+    'php_unit' => 'PHP Unit',
+    'php_cpd' => 'PHP Copy/Paste Detector',
+    'php_docblock_checker' => 'PHP Docblock Checker',
+
+    'add_group' => 'Добавить группу',
+    'projects' => 'Проекты',
+    'project_groups' => 'Группы проектов',
+    'build_details' => 'Подробности сборки',
+    'commit_details' => 'Подробности коммита',
+    'committer' => 'Кто закоммитил',
+    'timing' => 'Статистика по времени',
+    'created' => 'Создана',
+    'started' => 'Запущена',
+    'finished' => 'Завершена',
+    'severity' => 'Приоритет',
+
+    'authentication_settings' => 'Настройки входа в систему',
+    'disable_authentication' => 'Будьте осторожны. Эта настройка отключает проверку и позволяет выполнять любые действия с правами администратора без входа в систему.',
+    'disable_authentication_ask' => 'Отключить проверку входа?'
 );

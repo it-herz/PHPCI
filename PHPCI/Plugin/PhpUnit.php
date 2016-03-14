@@ -161,7 +161,7 @@ class PhpUnit implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
             $success &= $this->runDir($this->directory);
         }
 
-        $tapString = $this->phpci->getLastOutput();
+        $tapString = $this->phpci->getLastError();
         $tapString = mb_convert_encoding($tapString, "UTF-8", "ISO-8859-1");
 
         try {
@@ -199,7 +199,7 @@ class PhpUnit implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
 
             $phpunit = $this->phpci->findBinary('phpunit');
 
-            $cmd = $phpunit . ' --tap %s -c "%s" ' . $this->coverage . $this->path;
+            $cmd = $phpunit . ' --log-tap php://stderr %s -c "%s" ' . $this->coverage . $this->path;
             $success = $this->phpci->executeCommand($cmd, $this->args, $this->phpci->buildPath . $configPath);
 
             if ($this->runFrom) {
@@ -225,7 +225,7 @@ class PhpUnit implements PHPCI\Plugin, PHPCI\ZeroConfigPlugin
 
             $phpunit = $this->phpci->findBinary('phpunit');
 
-            $cmd = $phpunit . ' --tap %s "%s"';
+            $cmd = $phpunit . ' --log-tap php://stderr %s "%s"';
             $success = $this->phpci->executeCommand($cmd, $this->args, $this->phpci->buildPath . $directory);
             chdir($curdir);
             return $success;
